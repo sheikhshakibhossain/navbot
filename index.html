@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Waypoints Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map { width: 600px; height: 400px; }
+        #waypoints { width: 600px; height: 100px; }
+        .container { display: flex; flex-direction: column; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="map"></div>
+        <button id="addWaypoint">Add Waypoint</button>
+        <textarea id="waypoints" readonly></textarea>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+    <script>
+        // Initialize the map and set its view to the specified coordinates and zoom level
+        var map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Add a tile layer to the map
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Connect to ROS
+        var ros = new ROSLIB.Ros({
+            url : 'ws://localhost:9090'
+        });
+
+        // Define the waypoint topic
+        var waypointTopic = new ROSLIB.Topic({
+            ros : ros,
+            name : '/waypoint',
+            messageType : 'sensor_msgs/NavSatFix'
+        });
+
+        // Function to add a waypoint
+        function addWaypoint(lat, lng) {
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup('Waypoint at ' + lat + ', ' + lng)
+                .openPopup();
+
+            var waypointsTextBox = document.getElementById('waypoints');
+            waypointsTextBox.value += 'Lat: ' + lat + ', Lng: ' + lng + '\n';
+
+            // Create and publish the NavSatFix message
+            var waypointMsg = new ROSLIB.Message({
+                header : {
+                    stamp : { secs : Math.floor(Date.now() / 1000), nsecs : (Date.now() % 1000) * 1000000 },
+                    frame_id : 'map'
+                },
+                status : { status : 0, service : 1 },
+                latitude : lat,
+                longitude : lng,
+                altitude : 0,
+                position_covariance : [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                position_covariance_type : 0
+            });
+
+            waypointTopic.publish(waypointMsg);
+        }
+
+        // Add click event listener to the button
+        document.getElementById('addWaypoint').addEventListener('click', function() {
+            map.once('click', function(e) {
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+                addWaypoint(lat, lng);
+            });
+        });
+    </script>
+</body>
+</html>
+
