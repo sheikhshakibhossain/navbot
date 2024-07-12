@@ -16,6 +16,14 @@ class WaypointSubscriber(Node):
 
     def listener_callback(self, msg):
         self.get_logger().info(f'Received waypoint: Latitude: {msg.latitude}, Longitude: {msg.longitude}, Altitude: {msg.altitude}')
+        self.goalTest(msg)
+
+
+    def goalTest(self, msg):
+        if msg.position_covariance_type == 1:
+            self.get_logger().info('reached')
+
+
 
 def main(args=None):
     rclpy.init(args=args)
